@@ -1,0 +1,94 @@
+1. Generate RSA key pair for CA
+2048 bit RSA key
+cmd: genrsa -aes128 -out rootCA.key 2048
+file: rootCA.key
+password: passw0rd
+
+
+cmd: genrsa -aes128 -out expired.key 2048
+req -x509 -new -key expired.key -days 0 -out expired.cer
+
+2. Construct (self-signed) CA certificate
+cmd: req -x509 -new -key rootCA.key -days 3560 -out rootCA.pem
+file: rootCA.pem
+DN:SE, Scania, Lund, LTH, LTH
+
+Server:
+3. Generate RSA key pair the server
+
+3.1 Generate a rsa key and creating a keystore for the server (add key to keystore)
+
+cmd: keytool -genkey -alias localhost -keystore serverKeyStore.jks -keyalg RSA -sigalg Sha1withRSA
+
+CN=William Mauritzon, OU=Education, O=HE, L=Helsingborg, ST=Scani, C=SE
+
+keystore password: passw0rd
+file: serverKeyStore.jks
+
+4.0 Request CA to issue certificate for the server public key
+
+4.1 Get a certificate for the serverKeyStore / generate a certicate for the server
+cmd: keytool -certreq -alias localhost -keystore serverKeyStore.jks -file server.csr
+file: server.csr
+
+4.2 Sign the generated certicate with the CA (V3)
+cmd: openssl x509 -req -CA rootCA.pem -CAkey rootCA.key -in server.csr -out server.cer -days 365 -extfile server_v3.txt -set_serial 1
+file: server.cer
+
+Client:
+5. Generate RSA key pair for the client
+
+5.1 Generate a rsa key and creating a keystore for the client (add key to keystore)
+
+cmd: keytool -genkey -alias client -keystore clientKeyStore.jks -keyalg RSA -sigalg Sha1withRSA
+
+CN=Bob bobber, OU=Bober unit, O=Bobcat, L=Bobtown, ST=Bob state, C=CA
+
+keystore password: passw0rd
+file: clientKeyStore.jks
+
+6.0 Request CA to issue certificate for the client public key
+
+6.1 Get a certificate for the clientKeyStore / generate a certicate for the server
+cmd: keytool -certreq -alias client -keystore clientKeyStore.jks -file client.csr
+file: client.csr
+
+6.2 Sign the generated certicate with the CA (V3)
+cmd: openssl x509 -req -CA rootCA.pem -CAkey rootCA.key -in client.csr -out client.cer -days 365 -extfile client_v3.txt -set_serial 1
+file: client.cer
+
+
+7. Server stores its private key in its KeyStore and the CA certificate in its TrustStore.
+
+Server: should contain server and root certificate
+
+7.1 Add rootCA certificate to the server keystore
+cmd: keytool -importcert -file rootCA.pem -keystore serverKeyStore.jks -alias myCA
+msg: --Certificate was added to keystore--
+
+7.2 Add the server certificate to the server keystore 
+cmd: keytool -importcert -file server.cer -keystore serverKeyStore.jks -alias localhost
+msg: --Certificate reply was installed in keystore--
+
+
+8. Client stores its private key in its KeyStore and the CA certificate in its TrustStore.
+
+Client: should contain client and root certificate
+
+8.1 Add rootCA certificate to the client keystore
+cmd: keytool -importcert -file rootCA.pem -keystore clientKeyStore.jks -alias myCA
+--Certificate was added to keystore--
+
+8.2 Add the client certificate to the client keystore 
+cmd: keytool -importcert -file client.cer -keystore clientKeyStore.jks -alias client
+--Certificate reply was installed in keystore--
+
+
+
+//other cmd
+
+cd C:\code\jav\EITF55\src\proj2
+
+https://localhost:8043
+
+keytool -delete -alias myCA -keystore serverKeystore.jks
